@@ -1,5 +1,6 @@
 version: '3.9'
 services:
+  
   rpc-server:
     build: rpc-server
     ports:
@@ -7,8 +8,14 @@ services:
     environment:
       - SERVICE_NAME=rpc-server
       - SERVICE_TAGS=rpc
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=db
     depends_on:
       - etcd
+      - db
   http-server:
     build: http-server
     ports:
@@ -24,3 +31,15 @@ services:
     command: ["etcd", "--advertise-client-urls", "http://etcd:2379", "--listen-client-urls", "http://0.0.0.0:2379"]
     ports:
       - "2379:2379"
+  db:
+    image: mysql/mysql-server:latest
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_USER=user
+      - MYSQL_PASSWORD=password
+      - MYSQL_DATABASE=db
+      - MYSQL_ROOT_PASSWORD=password
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d

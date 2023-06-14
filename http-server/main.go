@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 	"time"
-
+	"strconv"
 	"github.com/TikTokTechImmersion/assignment_demo_2023/http-server/kitex_gen/rpc"
 	"github.com/TikTokTechImmersion/assignment_demo_2023/http-server/kitex_gen/rpc/imservice"
 	"github.com/TikTokTechImmersion/assignment_demo_2023/http-server/proto_gen/api"
@@ -48,11 +48,18 @@ func sendMessage(ctx context.Context, c *app.RequestContext) {
 		c.String(consts.StatusBadRequest, "Failed to parse request body: %v", err)
 		return
 	}
+    
+    sender := c.Query("sender")
+    receiver := c.Query("receiver")
+    text := c.Query("text")
+    sendTime, err := time.Parse("2006-01-02 15:04:05", time.Now().Format("2006-01-02 15:04:05"))
+
 	resp, err := cli.Send(ctx, &rpc.SendRequest{
 		Message: &rpc.Message{
-			Chat:   req.Chat,
-			Text:   req.Text,
-			Sender: req.Sender,
+			Chat:   sender+":"+receiver ,
+			Text:   text,
+			Sender: sender,
+            SendTime: sendTime.Unix(),
 		},
 	})
 	if err != nil {
@@ -72,11 +79,55 @@ func pullMessage(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
+	chat := c.Query("chat")
+	tempCursor, err := strconv.ParseInt(c.Query("cursor"),10,64)
+	var cursor int64
+	if tempCursor == 0 {
+		cursor = 0
+	} else {
+		cursor = tempCursor
+	}
+	
+	// if err != nil {
+	// 	c.String(consts.StatusBadRequest, "Failed to parse cursor: %v", err)
+	// 	return
+	// }
+
+
+	tempLimit,err  := strconv.ParseInt(c.Query("limit"),10,32)
+	// if err != nil {
+	// 	c.String(consts.StatusBadRequest, "Failed to parse limit: %v", err)
+	// 	return
+	// }
+
+
+	var limit int32
+	if tempLimit == 0 {
+		limit = 10
+	} else {
+		limit = int32(tempLimit)
+	}
+	
+
+	var reverse bool
+	tempReverse,err := strconv.ParseBool(c.Query("reverse"))
+	if c.Query("reverse") == "" {
+		reverse = false
+		err = nil
+	} else {
+		reverse = tempReverse
+	}
+	
+	if err != nil {
+		c.String(consts.StatusBadRequest, "Failed to parse reverse: %v", err)
+		return
+	}
+
 	resp, err := cli.Pull(ctx, &rpc.PullRequest{
-		Chat:    req.Chat,
-		Cursor:  req.Cursor,
-		Limit:   req.Limit,
-		Reverse: &req.Reverse,
+		Chat:    chat,
+		Cursor:  cursor,
+		Limit:   limit,
+		Reverse: &reverse,
 	})
 	if err != nil {
 		c.String(consts.StatusInternalServerError, err.Error())
@@ -85,6 +136,7 @@ func pullMessage(ctx context.Context, c *app.RequestContext) {
 		c.String(consts.StatusInternalServerError, resp.Msg)
 		return
 	}
+
 	messages := make([]*api.Message, 0, len(resp.Messages))
 	for _, msg := range resp.Messages {
 		messages = append(messages, &api.Message{

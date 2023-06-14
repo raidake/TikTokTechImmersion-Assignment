@@ -7,6 +7,7 @@ require (
 	github.com/cloudwego/kitex v0.5.2
 	github.com/kitex-contrib/registry-etcd v0.1.0
 	github.com/stretchr/testify v1.8.2
+	github.com/go-sql-driver/mysql v1.6.0
 )
 
 require (
